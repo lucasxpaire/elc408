@@ -1,0 +1,6 @@
+AUTOMACAO "Rotina Noturna"
+QUANDO horario 22:30
+SE light.sala_estar estiver desligado
+E switch.tv estiver desligado
+ENTAO ligar light.quarto
+E notificar "Boa noite!"

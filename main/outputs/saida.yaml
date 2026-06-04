@@ -1,0 +1,20 @@
+- id: '4016142319'
+  alias: "Rotina Noturna"
+  description: "Gerado automaticamente pelo Compilador Homi"
+  trigger:
+  - platform: time
+    at: '22:30:00'
+  condition:
+  - condition: state
+    entity_id: light.sala_estar
+    state: 'off'
+  - condition: state
+    entity_id: switch.tv
+    state: 'off'
+  action:
+  - service: light.turn_on
+    target:
+      entity_id: light.quarto
+  - service: notify.persistent_notification
+    data:
+      message: "Boa noite!"
