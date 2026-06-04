@@ -7,7 +7,7 @@ A Tabela Preditiva é usada pelo Analisador Sintático Preditivo Top-Down. Ela �
 | **BlocoQuando** | QUANDO RegraGatilho | - | - | - |
 | **RegraGatilho** | - | TIPO_GATILHO Comp | - | - |
 | **BlocoSe** | - | - | SE RegraCond | - |
-| **Comando** | - | - | - | VERBO_ACAO Comp|
+| **Comando** | - | - | - | ACAO Comp|
 
 Quando a interseção está vazia, há um Erro de Sintaxe (ou Modo Pânico é acionado).
 Na implementação Python (`sintatico.py`), essa matriz foi construída usando Dicionários embutidos de rápida pesquisa. 

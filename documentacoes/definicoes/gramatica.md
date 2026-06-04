@@ -28,7 +28,7 @@ MaisCondicoes -> OP_LOGICO RegraCondicao
 
 BlocoEntao -> ENTAO Comando MaisComandos
 
-Comando -> VERBO_ACAO Complemento
+Comando -> ACAO Complemento
 
 Complemento -> ID_ENTIDADE 
             | STRING

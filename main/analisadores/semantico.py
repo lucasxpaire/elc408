@@ -1,8 +1,5 @@
 class AnalisadorSemantico:
-    """
-    O Analisador Semântico verifica as regras lógicas e a consistência externa (mundo real).
-    Ele garante que as instruções façam sentido para o Home Assistant.
-    """
+    
     def __init__(self, arvore):
         self.arvore = arvore
         self.erros = [] 
@@ -36,9 +33,6 @@ class AnalisadorSemantico:
         return len(self.erros) == 0
 
     def percorrer_arvore(self, no):
-        """
-        Navegação Baseada na Árvore Sintática (AST)
-        """
         if no.tipo == 'Comando':
             self.validar_comando(no)
         elif no.tipo == 'RegraCondicao' or no.tipo == 'RegraGatilho':
@@ -52,15 +46,11 @@ class AnalisadorSemantico:
         self.erros.append(erro)
 
     def validar_estado(self, no_regra):
-        """ Valida se uma entidade pode estar em um determinado estado """
-        entidade_node = None
-        estado_node = None
-        
-        for filho in no_regra.filhos:
-            if filho.tipo == 'ID_ENTIDADE':
-                entidade_node = filho
-            elif filho.tipo == 'ESTADO':
-                estado_node = filho
+        if not no_regra.filhos or no_regra.filhos[0].tipo != 'ID_ENTIDADE':
+            return
+            
+        entidade_node = no_regra.filhos[0]
+        estado_node = no_regra.filhos[2]
                 
         if entidade_node and estado_node:
             entidade = entidade_node.valor
@@ -76,29 +66,18 @@ class AnalisadorSemantico:
                 self.reportar_erro(f"Incompatibilidade de Tipo: A entidade '{entidade}' ({dominio}) não suporta o estado '{estado}'.")
 
     def validar_comando(self, no_comando):
-        verbo_node = None
-        complemento_node = None
-        
-        for filho in no_comando.filhos:
-            if filho.tipo == 'VERBO_ACAO':
-                verbo_node = filho
-            elif filho.tipo == 'Complemento':
-                complemento_node = filho
-                
-        if not verbo_node or not complemento_node:
+        if len(no_comando.filhos) != 2:
             return
+            
+        acao_node = no_comando.filhos[0]
+        complemento_node = no_comando.filhos[1]
 
-        verbo = verbo_node.valor
-        if verbo == 'notificar':
+        acao = acao_node.valor
+        if acao == 'notificar':
             return 
 
-        id_entidade_node = None
-        for filho in complemento_node.filhos:
-            if filho.tipo == 'ID_ENTIDADE':
-                id_entidade_node = filho
-                break
-                
-        if id_entidade_node:
+        if complemento_node.filhos and complemento_node.filhos[0].tipo == 'ID_ENTIDADE':
+            id_entidade_node = complemento_node.filhos[0]
             entidade = id_entidade_node.valor
             
             if entidade not in self.tabela_simbolos:
@@ -107,5 +86,5 @@ class AnalisadorSemantico:
                 
             dominio = self.tabela_simbolos[entidade]
             
-            if verbo not in self.acoes_permitidas.get(dominio, []):
-                self.reportar_erro(f"Incompatibilidade de Tipo: Não é possível '{verbo}' a entidade '{entidade}' (Domínio: {dominio}).")
+            if acao not in self.acoes_permitidas.get(dominio, []):
+                self.reportar_erro(f"Incompatibilidade de Tipo: Não é possível '{acao}' a entidade '{entidade}' (Domínio: {dominio}).")

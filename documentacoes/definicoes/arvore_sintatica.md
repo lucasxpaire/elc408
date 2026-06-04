@@ -9,7 +9,7 @@ No nosso compilador, quando o usuário escreve: `ENTAO ligar light.quarto`, a es
                    /        \
                [ENTAO]    [Comando]
                           /      \
-                [VERBO_ACAO]   [Complemento]
+                [ACAO]   [Complemento]
                   (ligar)           |
                               [ID_ENTIDADE]
                              (light.quarto)

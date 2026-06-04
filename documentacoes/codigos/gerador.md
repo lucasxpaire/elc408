@@ -13,7 +13,7 @@ estado_en = 'on' if estado_pt in ['ligado', 'aberto', 'movimento'] else 'off'
 
 ## A GeraÃ§Ã£o de Comandos
 ```python
-if verbo == 'ligar':
+if ação == 'ligar':
     dominio = alvo.split('.')[0]
     self.linhas_yaml.append(f"  - service: {dominio}.turn_on")
 ```

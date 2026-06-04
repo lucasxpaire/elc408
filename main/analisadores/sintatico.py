@@ -45,7 +45,7 @@ class AnalisadorSintatico:
                 'ENTAO': ['ENTAO', 'Comando', 'MaisComandos']
             },
             'Comando': {
-                'VERBO_ACAO': ['VERBO_ACAO', 'Complemento']
+                'ACAO': ['ACAO', 'Complemento']
             },
             'Complemento': {
                 'ID_ENTIDADE': ['ID_ENTIDADE'],

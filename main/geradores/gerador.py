@@ -6,7 +6,6 @@ class GeradorYAML:
         self.linhas_yaml = [] 
 
     def gerar(self):
-        print("--- INICIANDO GERAÇÃO DE CÓDIGO (YAML) ---")
         self.linhas_yaml = []
         id_aleatorio = random.randint(1000000000, 9999999999)
         self.linhas_yaml.append(f"- id: '{id_aleatorio}'")
@@ -114,29 +113,28 @@ class GeradorYAML:
     def visitar_entao(self, no_entao):
         comandos = self.extrair_comandos(no_entao)
         for cmd in comandos:
-            verbo = cmd['verbo']
+            acao = cmd['acao']
             alvo = cmd['alvo']
             
-            if verbo == 'ligar':
+            if acao == 'ligar':
                 dominio = alvo.split('.')[0]
                 self.linhas_yaml.append(f"  - service: {dominio}.turn_on")
                 self.linhas_yaml.append("    target:")
                 self.linhas_yaml.append(f"      entity_id: {alvo}")
                 
-            elif verbo == 'desligar':
+            elif acao == 'desligar':
                 dominio = alvo.split('.')[0]
                 self.linhas_yaml.append(f"  - service: {dominio}.turn_off")
                 self.linhas_yaml.append("    target:")
                 self.linhas_yaml.append(f"      entity_id: {alvo}")
                 
-            elif verbo == 'alternar':
+            elif acao == 'alternar':
                 dominio = alvo.split('.')[0]
                 self.linhas_yaml.append(f"  - service: {dominio}.toggle")
                 self.linhas_yaml.append("    target:")
                 self.linhas_yaml.append(f"      entity_id: {alvo}")
                 
-            elif verbo == 'notificar':
-                # [MERGE APLICADO] notify.persistent_notification do colega
+            elif acao == 'notificar':
                 self.linhas_yaml.append("  - service: notify.persistent_notification")
                 self.linhas_yaml.append("    data:")
                 self.linhas_yaml.append(f"      message: {alvo}")
@@ -145,10 +143,10 @@ class GeradorYAML:
         comandos = []
         for filho in no.filhos:
             if filho.tipo == 'Comando':
-                verbo = filho.filhos[0].valor
+                acao = filho.filhos[0].valor
                 complemento_node = filho.filhos[1]
                 alvo = complemento_node.filhos[0].valor
-                comandos.append({'verbo': verbo, 'alvo': alvo})
+                comandos.append({'acao': acao, 'alvo': alvo})
             elif filho.tipo == 'MaisComandos':
                 if len(filho.filhos) > 0:
                     comandos.extend(self.extrair_comandos(filho))

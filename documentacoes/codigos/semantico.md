@@ -19,7 +19,7 @@ Ela pega o nó pai, verifica, e manda ela mesma verificar todos os nós filhos a
 ## A Validação Segura
 ```python
 for filho in no_comando.filhos:
-    if filho.tipo == 'VERBO_ACAO':
-        verbo_node = filho
+    if filho.tipo == 'ACAO':
+        a��o_node = filho
 ```
-O método `validar_comando` apenas busca os filhos dentro dessa "caixa", pega o nome da entidade, valida no dicionário, pega o verbo, cruza com a restrição, e reporta o erro caso haja quebra da regra de negócio.
+O método `validar_comando` apenas busca os filhos dentro dessa "caixa", pega o nome da entidade, valida no dicionário, pega o a��o, cruza com a restrição, e reporta o erro caso haja quebra da regra de negócio.

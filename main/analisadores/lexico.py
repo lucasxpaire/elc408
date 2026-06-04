@@ -6,7 +6,7 @@ TOKEN_REGEX = [
     ('SE',        r'\bSE\b'),
     ('ENTAO',     r'\bENTAO\b'),
     ('OP_LOGICO', r'\b(E|OU|NAO)\b'),                      
-    ('VERBO_ACAO',r'\b(ligar|desligar|alternar|notificar)\b'),
+    ('ACAO',      r'\b(ligar|desligar|alternar|notificar)\b'),
     ('ESTADO',    r'\b(ligado|desligado|aberto|fechado|movimento|ocioso)\b'),
     ('OPERADOR',  r'\b(for|estiver)\b'),
     ('TIPO_GATILHO', r'\b(horario|tempo)\b'),
