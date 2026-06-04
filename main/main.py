@@ -43,31 +43,33 @@ def main():
 
     print("\n[FASE 1] Analisador Léxico")
     lexer = AnalisadorLexico(codigo_fonte)
-    tokens_gerados, erro_lexico = lexer.analisar()
+    tokens_gerados = lexer.analisar()
     print(f"-> {len(tokens_gerados)} tokens válidos extraídos.")
-    if erro_lexico:
-        print("[AVISO] Erros léxicos encontrados. Continuando análise para encontrar mais erros...")
 
     print("\n[FASE 2] Analisador Sintático")
     parser = AnalisadorSintatico(tokens_gerados)
-    sucesso_sintatico, arvore = parser.analisar()
+    arvore = parser.analisar()
     
-    if sucesso_sintatico:
-        print("[FASE 3] Analisador Semântico")
-        analisador_semantico = AnalisadorSemantico(arvore)
-        sucesso_semantico = analisador_semantico.analisar()
-        if sucesso_semantico:
-            if erro_lexico:
-                print("\n[FALHA GERAL] O código possui erros léxicos. Geração de YAML cancelada.")
-                return
-            print("\n[FASE 4] Gerador YAML")
-            gerador = GeradorYAML(arvore)
-            codigo_final = gerador.gerar()
-            salvar_arquivo_saida(codigo_final)
-        else:
-            print("[ERRO] Falha Semântica.")
-    else:
-        print("[ERRO] Falha Sintática.")
+    print("\n[FASE 3] Analisador Semântico")
+    analisador_semantico = AnalisadorSemantico(arvore)
+    if arvore:
+        analisador_semantico.analisar()
+        
+    todos_erros = lexer.erros + parser.erros + analisador_semantico.erros
+    if len(todos_erros) > 0:
+        print("\n========================================")
+        print("          RELATÓRIO DE ERROS            ")
+        print("========================================")
+        for erro in todos_erros:
+            print(erro)
+        print("========================================")
+        print("-> A compilação foi abortada e o YAML não será gerado.")
+        return
+
+    print("\n[FASE 4] Gerador YAML")
+    gerador = GeradorYAML(arvore)
+    codigo_final = gerador.gerar()
+    salvar_arquivo_saida(codigo_final)
 
 if __name__ == "__main__":
     main()

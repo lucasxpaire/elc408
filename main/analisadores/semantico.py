@@ -7,7 +7,6 @@ class AnalisadorSemantico:
         self.arvore = arvore
         self.erros = [] 
         
-        # TABELA DE SÍMBOLOS (Mock da Casa) - [MERGE APLICADO]
         self.tabela_simbolos = {
             'light.sala_estar': 'light',
             'light.quarto': 'light',
@@ -18,15 +17,13 @@ class AnalisadorSemantico:
             'sensor.temperature_living_room': 'sensor_num'
         }
         
-        # O que cada domínio pode FAZER (Verbos) - [MERGE APLICADO]
         self.acoes_permitidas = {
             'light': ['ligar', 'desligar', 'alternar'],
             'switch': ['ligar', 'desligar', 'alternar'],
-            'binary_sensor': [], # Sensores não podem receber comandos de ação
+            'binary_sensor': [],
             'sensor_num': []
         }
         
-        # O que cada domínio pode SENTIR (Estados) - [MERGE APLICADO]
         self.estados_permitidos = {
             'light': ['ligado', 'desligado'],
             'switch': ['ligado', 'desligado'],
@@ -35,17 +32,8 @@ class AnalisadorSemantico:
         }
 
     def analisar(self):
-        print("--- INICIANDO ANÁLISE SEMÂNTICA ---")
-        
         self.percorrer_arvore(self.arvore)
-        
-        if len(self.erros) > 0:
-            for erro in self.erros:
-                print(erro)
-            return False
-            
-        print("Análise Semântica concluída com SUCESSO! A lógica está consistente.")
-        return True
+        return len(self.erros) == 0
 
     def percorrer_arvore(self, no):
         """
@@ -78,19 +66,16 @@ class AnalisadorSemantico:
             entidade = entidade_node.valor
             estado = estado_node.valor
             
-            # 1. Validação de Existência na Tabela de Símbolos
             if entidade not in self.tabela_simbolos:
                 self.reportar_erro(f"Entidade '{entidade}' não declarada na Tabela de Símbolos.")
                 return
                 
             dominio = self.tabela_simbolos[entidade]
             
-            # 2. Validação de Estados Permitidos
             if estado not in self.estados_permitidos.get(dominio, []):
                 self.reportar_erro(f"Incompatibilidade de Tipo: A entidade '{entidade}' ({dominio}) não suporta o estado '{estado}'.")
 
     def validar_comando(self, no_comando):
-        """ Valida se o comando pode ser aplicado ao domínio """
         verbo_node = None
         complemento_node = None
         
@@ -116,13 +101,11 @@ class AnalisadorSemantico:
         if id_entidade_node:
             entidade = id_entidade_node.valor
             
-            # 1. Validação de Existência
             if entidade not in self.tabela_simbolos:
                 self.reportar_erro(f"Entidade '{entidade}' não declarada na Tabela de Símbolos.")
                 return
                 
             dominio = self.tabela_simbolos[entidade]
             
-            # 2. Validação de Ação Permitida
             if verbo not in self.acoes_permitidas.get(dominio, []):
                 self.reportar_erro(f"Incompatibilidade de Tipo: Não é possível '{verbo}' a entidade '{entidade}' (Domínio: {dominio}).")

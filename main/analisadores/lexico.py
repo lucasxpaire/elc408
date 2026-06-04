@@ -25,7 +25,7 @@ class AnalisadorLexico:
         self.codigo_fonte = codigo_fonte
         self.tokens_encontrados = []
         self.linha_atual = 1
-        self.teve_erro = False
+        self.erros = []
 
     def analisar(self):
         regex_combinada = '|'.join(f'(?P<{nome}>{padrao})' for nome, padrao in TOKEN_REGEX)
@@ -39,9 +39,8 @@ class AnalisadorLexico:
             elif tipo_token == 'ESPACO' or tipo_token == 'COMENTARIO':
                 continue 
             elif tipo_token == 'ERRO':
-                print(f"[ERRO LÉXICO] Caractere ou palavra inválida '{valor_token}' na linha {self.linha_atual}")
-                self.teve_erro = True
+                self.erros.append(f"[ERRO LÉXICO] Caractere ou palavra inválida '{valor_token}' na linha {self.linha_atual}")
             else:
                 self.tokens_encontrados.append((tipo_token, valor_token, self.linha_atual))
                 
-        return self.tokens_encontrados, self.teve_erro
+        return self.tokens_encontrados
