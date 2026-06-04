@@ -20,25 +20,28 @@ TOKEN_REGEX = [
     ('ERRO',      r'.')                                    
 ]
 
-def analisador_lexico(codigo_fonte):
-    tokens_encontrados = []
-    linha_atual = 1
-    teve_erro = False
+class AnalisadorLexico:
+    def __init__(self, codigo_fonte):
+        self.codigo_fonte = codigo_fonte
+        self.tokens_encontrados = []
+        self.linha_atual = 1
+        self.teve_erro = False
 
-    regex_combinada = '|'.join(f'(?P<{nome}>{padrao})' for nome, padrao in TOKEN_REGEX)
-    
-    for match in re.finditer(regex_combinada, codigo_fonte):
-        tipo_token = match.lastgroup
-        valor_token = match.group(tipo_token)
+    def analisar(self):
+        regex_combinada = '|'.join(f'(?P<{nome}>{padrao})' for nome, padrao in TOKEN_REGEX)
+        
+        for match in re.finditer(regex_combinada, self.codigo_fonte):
+            tipo_token = match.lastgroup
+            valor_token = match.group(tipo_token)
 
-        if tipo_token == 'NOVA_LINHA':
-            linha_atual += 1
-        elif tipo_token == 'ESPACO' or tipo_token == 'COMENTARIO':
-            continue 
-        elif tipo_token == 'ERRO':
-            print(f"[ERRO LÉXICO] Caractere ou palavra inválida '{valor_token}' na linha {linha_atual}")
-            teve_erro = True
-        else:
-            tokens_encontrados.append((tipo_token, valor_token, linha_atual))
-            
-    return tokens_encontrados, teve_erro
+            if tipo_token == 'NOVA_LINHA':
+                self.linha_atual += 1
+            elif tipo_token == 'ESPACO' or tipo_token == 'COMENTARIO':
+                continue 
+            elif tipo_token == 'ERRO':
+                print(f"[ERRO LÉXICO] Caractere ou palavra inválida '{valor_token}' na linha {self.linha_atual}")
+                self.teve_erro = True
+            else:
+                self.tokens_encontrados.append((tipo_token, valor_token, self.linha_atual))
+                
+        return self.tokens_encontrados, self.teve_erro
