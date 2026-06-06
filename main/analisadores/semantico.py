@@ -25,7 +25,7 @@ class AnalisadorSemantico:
             'light': ['ligado', 'desligado'],
             'switch': ['ligado', 'desligado'],
             'binary_sensor': ['aberto', 'fechado', 'movimento', 'ocioso'],
-            'sensor_num': [] 
+            'sensor_num': ['quente', 'frio', 'normal'] 
         }
 
     def analisar(self):
