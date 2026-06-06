@@ -39,18 +39,20 @@ class GeradorYAML:
             
         self.linhas_yaml.append("  description: \"Gerado automaticamente pelo Compilador Homi\"")
             
-        self.linhas_yaml.append("  trigger:")
+        self.linhas_yaml.append("  triggers:")
         if bloco_quando:
             self.visitar_quando(bloco_quando)
             
         # Verifica se o BlocoSe tem algum filho, senão é epsilon e não imprime condition
         if len(bloco_se.filhos) > 0:
-            self.linhas_yaml.append("  condition:")
+            self.linhas_yaml.append("  conditions:")
             self.visitar_se(bloco_se)
             
-        self.linhas_yaml.append("  action:")
+        self.linhas_yaml.append("  actions:")
         if bloco_entao:
             self.visitar_entao(bloco_entao)
+            
+        self.linhas_yaml.append("  mode: single")
 
     def visitar_quando(self, no_quando):
         for filho in no_quando.filhos:
@@ -118,24 +120,24 @@ class GeradorYAML:
             
             if acao == 'ligar':
                 dominio = alvo.split('.')[0]
-                self.linhas_yaml.append(f"  - service: {dominio}.turn_on")
+                self.linhas_yaml.append(f"  - action: {dominio}.turn_on")
                 self.linhas_yaml.append("    target:")
                 self.linhas_yaml.append(f"      entity_id: {alvo}")
                 
             elif acao == 'desligar':
                 dominio = alvo.split('.')[0]
-                self.linhas_yaml.append(f"  - service: {dominio}.turn_off")
+                self.linhas_yaml.append(f"  - action: {dominio}.turn_off")
                 self.linhas_yaml.append("    target:")
                 self.linhas_yaml.append(f"      entity_id: {alvo}")
                 
             elif acao == 'alternar':
                 dominio = alvo.split('.')[0]
-                self.linhas_yaml.append(f"  - service: {dominio}.toggle")
+                self.linhas_yaml.append(f"  - action: {dominio}.toggle")
                 self.linhas_yaml.append("    target:")
                 self.linhas_yaml.append(f"      entity_id: {alvo}")
                 
             elif acao == 'notificar':
-                self.linhas_yaml.append("  - service: notify.persistent_notification")
+                self.linhas_yaml.append("  - action: notify.persistent_notification")
                 self.linhas_yaml.append("    data:")
                 self.linhas_yaml.append(f"      message: {alvo}")
 

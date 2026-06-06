@@ -1,0 +1,237 @@
+\documentclass[12pt, a4paper]{article}
+
+% Pacotes para o português e formatação
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath} 
+% Configuração para blocos de código
+\lstset{
+    backgroundcolor=\color{gray!10},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    tabsize=2,
+    showstringspaces=false
+}
+
+\title{\textbf{Trabalho Final: Compiladores}\\Construção do Compilador para a Linguagem Homi}
+\author{Carlos Eduardo Velozo e Lucas Xavier Pairé}
+\date{}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introdução}
+Esse relatório explica o desenvolvimento do compilador para a linguagem \textbf{Homi}. O objetivo principal desta linguagem é abstrair a complexidade na criação de automações para o sistema \textit{Home Assistant}, convertendo scripts lógicos e de fácil leitura para pessoas leigas em arquivos de configuração declarativos no formato YAML. O projeto foi construído seguindo as fases: análise léxica, sintática, semântica e geração de código intermediário.
+
+\section{Fase A: Definição da Linguagem Homi}
+A linguagem Homi visa simplificar a criação de automações no \textit{Home Assistant}. Ela converte regras escritas de forma imperativa em português para o formato declarativo YAML, exigido pelo sistema, abstraindo a sua complexidade de sintaxe e indentação.
+
+A estrutura de uma automação Homi é dividida em três blocos lógicos:
+\begin{itemize}
+    \item \textbf{Gatilhos (\texttt{QUANDO}):} Evento que inicia a automação.
+    \item \textbf{Condições (\texttt{SE}):} Regras opcionais que devem ser atendidas.
+    \item \textbf{Ações (\texttt{ENTAO}):} Comandos executados nos dispositivos.
+\end{itemize}
+
+O operador lógico \texttt{E} permite encadear múltiplas condições ou ações. Para manter compatibilidade nativa, os dispositivos são referenciados pelo seu domínio padrão (ex: \texttt{light.sala\_estar}, \texttt{sensor.porta}). O escopo atual suporta controle de estado e notificações.
+
+Exemplo de automação Homi:
+\begin{lstlisting}
+AUTOMACAO "Rotina Noturna"
+QUANDO horario 22:30
+SE light.sala_estar estiver desligado
+E switch.tv estiver desligado
+ENTAO ligar light.quarto
+E notificar "Boa noite!"
+\end{lstlisting}
+
+\section{Fase B: Análise Léxica}
+O Analisador Léxico foi implementado na linguagem Python. Para o reconhecimento dos tokens, optou-se pela biblioteca \texttt{re} de Expressões Regulares, o qual gera internamente um Autômato Finito Determinístico em C.
+
+O analisador léxico percorre o código-fonte identificando lexemas válidos e convertendo-os em \textit{Tokens}. Caracteres de espaço (\texttt{[ \textbackslash t]+}) e comentários (linhas iniciadas por \texttt{\#}) são identificados e descartados nesta fase, não sendo repassados ao analisador sintático. 
+
+O analisador léxico contabiliza quebras de linha (\texttt{\textbackslash n}) para manter registro da linha atual, o que permite saber a localização de eventuais erros léxicos ou sintáticos durante a compilação.
+
+\subsection{Especificação dos Tokens}
+Abaixo encontra-se a tabela contendo a especificação das Expressões Regulares utilizadas para a captura de cada categoria de Token suportada pela linguagem.
+
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Token} & \textbf{Expressão Regular (Padrão)} & \textbf{Exemplo de Lexema} \\ \midrule
+\texttt{PALAVRA\_CHAVE} & \texttt{\textbackslash b(AUTOMACAO|QUANDO|SE|ENTAO)\textbackslash b} & AUTOMACAO, QUANDO \\
+\texttt{OP\_LOGICO} & \texttt{\textbackslash b(E|OU|NAO)\textbackslash b} & E, OU \\
+\texttt{ACAO} & \texttt{\textbackslash b(ligar|desligar|alternar|notificar)\textbackslash b} & ligar, notificar \\
+\texttt{ESTADO} & \texttt{\textbackslash b(ligado|desligado|aberto|fechado|movimento)\textbackslash b} & aberto, movimento \\
+\texttt{OPERADOR\_COND} & \texttt{\textbackslash b(for|estiver)\textbackslash b} & for, estiver \\
+\texttt{TEMPO\_EXATO} & \texttt{\textbackslash b\textbackslash d\{2\}:\textbackslash d\{2\}\textbackslash b} & 05:00, 22:30 \\
+\texttt{TEMPO\_UNIT} & \texttt{\textbackslash b\textbackslash d+(s|m|min|h|hs)\textbackslash b} & 10s, 5min \\
+\texttt{ID\_ENTIDADE} & \texttt{\textbackslash b{[}a-z\_{]}+\textbackslash .{[}a-z0-9\_{]}+\textbackslash b} & sensor.porta\_entrada \\
+\texttt{STRING} & \texttt{".*?"} & "Porta aberta!" \\ \bottomrule
+\end{tabular}%
+}
+\caption{Especificação Léxica da Linguagem Homi}
+\label{tab:lexico}
+\end{table}
+
+\section{Fase C: Análise Sintática}
+A análise sintática foi estruturada sob o paradigma de análise descendente preditiva não-recursiva, utilizando uma tabela de análise preditiva \textbf{LL(1)} associada a uma pilha estruturada de símbolos.
+
+\subsection{Gramática Livre de Contexto}
+Para viabilizar uma análise preditiva sem retrocesso (\textit{backtracking}), a gramática original da linguagem Homi foi fatorada à esquerda e todas as recursões à esquerda foram eliminadas. O símbolo $\varepsilon$ (Epsilon) representa produções vazias, usadas para mapear blocos opcionais, como o bloco de pré-condições \texttt{SE}.
+
+As regras de produção são:
+
+\begin{enumerate}
+    \item $\text{Programa} \rightarrow \texttt{AUTOMACAO} \quad \texttt{STRING} \quad \text{BlocoQuando} \quad \text{BlocoSe} \quad \text{BlocoEntao}$
+    \item $\text{BlocoQuando} \rightarrow \texttt{QUANDO} \quad \text{RegraGatilho}$
+    \item $\text{RegraGatilho} \rightarrow \texttt{TIPO\_GATILHO} \quad \texttt{TEMPO\_EXATO}$
+    \item $\text{RegraGatilho} \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO}$
+    \item $\text{BlocoSe} \rightarrow \texttt{SE} \quad \text{RegraCondicao}$
+    \item $\text{BlocoSe} \rightarrow \varepsilon$
+    \item $\text{RegraCondicao} \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO} \quad \text{MaisCondicoes}$
+    \item $\text{MaisCondicoes} \rightarrow \texttt{OP\_LOGICO} \quad \text{RegraCondicao}$
+    \item $\text{MaisCondicoes} \rightarrow \varepsilon$
+    \item $\text{BlocoEntao} \rightarrow \texttt{ENTAO} \quad \text{Comando} \quad \text{MaisComandos}$
+    \item $\text{Comando} \rightarrow \texttt{ACAO} \quad \text{Complemento}$
+    \item $\text{Complemento} \rightarrow \texttt{ID\_ENTIDADE}$
+    \item $\text{Complemento} \rightarrow \texttt{STRING}$
+    \item $\text{MaisComandos} \rightarrow \texttt{OP\_LOGICO} \quad \text{Comando} \quad \text{MaisComandos}$
+    \item $\text{MaisComandos} \rightarrow \varepsilon$
+\end{enumerate}
+
+\subsection{Conjuntos FIRST e FOLLOW}
+Como requisito matemático para validar o determinismo da tabela preditiva e garantir a ausência de conflitos de derivação, os conjuntos de símbolos de início (\textbf{FIRST}) e de sincronização pós-produção (\textbf{FOLLOW}) foram computados para cada variável Não-Terminal da gramática:
+
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Não-Terminal} & \textbf{FIRST} & \textbf{FOLLOW} \\ \midrule
+$\text{Programa}$ & $\{\texttt{AUTOMACAO}\}$ & $\{\$\}$ \\
+$\text{BlocoQuando}$ & $\{\texttt{QUANDO}\}$ & $\{\texttt{SE}, \texttt{ENTAO}\}$ \\
+$\text{RegraGatilho}$ & $\{\texttt{TIPO\_GATILHO}, \texttt{ID\_ENTIDADE}\}$ & $\{\texttt{SE}, \texttt{ENTAO}\}$ \\
+$\text{BlocoSe}$ & $\{\texttt{SE}, \varepsilon\}$ & $\{\texttt{ENTAO}\}$ \\
+$\text{RegraCondicao}$ & $\{\texttt{ID\_ENTIDADE}\}$ & $\{\texttt{ENTAO}\}$ \\
+$\text{MaisCondicoes}$ & $\{\texttt{OP\_LOGICO}, \varepsilon\}$ & $\{\texttt{ENTAO}\}$ \\
+$\text{BlocoEntao}$ & $\{\texttt{ENTAO}\}$ & $\{\$\}$ \\
+$\text{Comando}$ & $\{\texttt{ACAO}\}$ & $\{\texttt{OP\_LOGICO}, \$\}$ \\
+$\text{Complemento}$ & $\{\texttt{ID\_ENTIDADE}, \texttt{STRING}\}$ & $\{\texttt{OP\_LOGICO}, \$\}$ \\
+$\text{MaisComandos}$ & $\{\texttt{OP\_LOGICO}, \varepsilon\}$ & $\{\$\}$ \\ \bottomrule
+\end{tabular}%
+}
+\caption{Conjuntos FIRST e FOLLOW da Gramática Homi}
+\label{tab:first_follow}
+\end{table}
+
+\subsection{Mapeamento da Tabela Preditiva LL(1)}
+A intersecção dos conjuntos FIRST e FOLLOW resulta na estrutura matricial utilizada pelo algoritmo do analisador sintático. Cada entrada de índice $[\text{Não-Terminal}][\text{Terminal\_Lido}]$ armazena exclusivamente os tokens que devem ser empilhados na ordem reversa de execução, comprovando a propriedade LL(1).
+
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Não-Terminal} & \textbf{Entradas Ativas e Produções Mapeadas} \\ \midrule
+$\text{Programa}$ & $[\texttt{AUTOMACAO}] \rightarrow \texttt{AUTOMACAO} \quad \texttt{STRING} \quad \text{BlocoQuando} \quad \text{BlocoSe} \quad \text{BlocoEntao}$ \\ \midrule
+$\text{BlocoQuando}$ & $[\texttt{QUANDO}] \rightarrow \texttt{QUANDO} \quad \text{RegraGatilho}$ \\ \midrule
+$\text{RegraGatilho}$ & $[\texttt{TIPO\_GATILHO}] \rightarrow \texttt{TIPO\_GATILHO} \quad \texttt{TEMPO\_EXATO}$ \\
+ & $[\texttt{ID\_ENTIDADE}] \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO}$ \\ \midrule
+$\text{BlocoSe}$ & $[\texttt{SE}] \rightarrow \texttt{SE} \quad \text{RegraCondicao}$ \\
+ & $[\texttt{ENTAO}] \rightarrow \varepsilon$ \\ \midrule
+$\text{RegraCondicao}$ & $[\texttt{ID\_ENTIDADE}] \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO} \quad \text{MaisCondicoes}$ \\ \midrule
+$\text{MaisCondicoes}$ & $[\texttt{OP\_LOGICO}] \rightarrow \texttt{OP\_LOGICO} \quad \text{RegraCondicao}$ \\
+ & $[\texttt{ENTAO}] \rightarrow \varepsilon$ \\ \midrule
+$\text{BlocoEntao}$ & $[\texttt{ENTAO}] \rightarrow \texttt{ENTAO} \quad \text{Comando} \quad \text{MaisComandos}$ \\ \midrule
+$\text{Comando}$ & $[\texttt{ACAO}] \rightarrow \texttt{ACAO} \quad \text{Complemento}$ \\ \midrule
+$\text{Complemento}$ & $[\texttt{ID\_ENTIDADE}] \rightarrow \texttt{ID\_ENTIDADE}$ \\
+ & $[\texttt{STRING}] \rightarrow \texttt{STRING}$ \\ \midrule
+$\text{MaisComandos}$ & $[\texttt{OP\_LOGICO}] \rightarrow \texttt{OP\_LOGICO} \quad \text{Comando} \quad \text{MaisComandos}$ \\
+ & $[\text{EOF}] \rightarrow \varepsilon$ \\ \bottomrule
+\end{tabular}%
+}
+\caption{Matriz Estruturada da Tabela Preditiva LL(1)}
+\label{tab:tabela_ll1}
+\end{table}
+
+\subsection{Funcionamento do Algoritmo e Estrutura da Pilha}
+O analisador instancia um vetor de controle atuando como uma pilha LIFO, inicializada com o marcador de fim de cadeia $\$$ e com o símbolo inicial da gramática ($\text{Programa}$). O laço de repetição principal avalia continuamente o elemento posicionado no topo da pilha contra o elemento apontado pelo ponteiro de leitura do vetor de tokens gerados pelo analisador léxico:
+
+\begin{itemize}
+    \item \textbf{Se Topo == Token Lido:} Ocorre o casamento de terminal. O símbolo é desempilhado e o ponteiro do analisador léxico avança uma posição.
+    \item \textbf{Se Topo é Não-Terminal:} O analisador sintático realiza uma consulta indexada à Tabela Preditiva. Se houver uma produção válida definida para aquele par, o Não-Terminal é desempilhado e os símbolos da produção correspondente são inseridos na pilha em ordem estritamente invertida. Se a produção mapeada for $\varepsilon$, nada é empilhado de volta.
+    \item \textbf{Se Topo $\neq$ Token Lido ou Entrada da Tabela Indefinida:} Um erro de sintaxe é interceptado, forçando a interrupção da execução linear e invocando a rotina de contenção de falhas.
+\end{itemize}
+
+\subsection{Recuperação de Erros por Modo Pânico}
+Para cumprir o requisito de tolerância a falhas sem provocar o encerramento abrupto do compilador no primeiro erro, foi implementado o mecanismo de recuperação por \textbf{Modo Pânico}. 
+
+Ao identificar uma quebra de regra sintática, o analisador sintático suspende o processamento da pilha e dispara uma varredura para descarte contínuo de tokens lidos. Esse descarte persiste até que o analisador sintático localize um token pertencente ao conjunto de \textbf{Símbolos de Sincronização}, definidos estrategicamente neste projeto pelas âncoras estruturais de início de blocos principais: $\{\texttt{QUANDO}, \texttt{SE}, \texttt{ENTAO}, \texttt{EOF}\}$. 
+
+Uma vez localizado um desses tokens seguros, a pilha é limpa até que um Não-Terminal compatível com a nova estrutura seja encontrado no topo, permitindo que a análise dos blocos sintáticos subsequentes continue normalmente e que múltiplos erros estruturais sejam reportados em uma única execução.
+
+\section{Fase D: Análise Semântica}
+A análise semântica atua sobre a cadeia de tokens previamente validada pelo analisador sintático, tendo como objetivo garantir a consistência lógica e contextual das instruções em relação ao domínio do \textit{Home Assistant}. Embora uma instrução como \textit{"Ligar a porta"} seja sintaticamente correta, é semanticamente inválida.
+
+\subsection{Tabela de Símbolos}
+Foi implementada uma Tabela de Símbolos, estruturada em memória através de dicionários \textit{hash}, responsável por armazenar o registo das entidades conhecidas e os seus respetivos domínios (tipos). No contexto deste projeto, a tabela atua como um repositório validador.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Identificador da Entidade (\texttt{ID\_ENTIDADE})} & \textbf{Domínio / Tipo Associado} \\ \midrule
+\texttt{light.sala\_estar} & \texttt{light} (Iluminação) \\
+\texttt{switch.ilha\_interruptor} & \texttt{switch} (Interruptor) \\
+\texttt{sensor.porta\_entrada} & \texttt{binary\_sensor} (Sensor Binário) \\ \bottomrule
+\end{tabular}
+\caption{Exemplo de mapeamento na Tabela de Símbolos}
+\label{tab:tabela_simbolos}
+\end{table}
+
+\subsection{Verificação de Tipos e Consistência Externa}
+A principal responsabilidade do analisador semântico é cruzar as ações e os estados detetados no código fonte com as capacidades reais do domínio da entidade afetada. Para isso, foram mapeadas as \textbf{Regras de Consistência Externa}:
+
+\begin{itemize}
+    \item \textbf{Validação de Ações:} O analisador avalia se o token \texttt{ACAO} (ex: \texttt{ligar}) pode ser aplicado à entidade subsequente. Entidades do domínio \texttt{binary\_sensor} levantam exceções do tipo \textit{Incompatibilidade de Tipo} caso sejam alvo de ações de alteração de estado, pois sensores são dispositivos passivos (apenas leitura).
+    \item \textbf{Validação de Estados:} O analisador restringe os tokens \texttt{ESTADO} de acordo com o tipo da entidade. Por exemplo, uma entidade \texttt{light} aceita as condições \texttt{ligado} ou \texttt{desligado}, mas rejeitará os estados \texttt{aberto} ou \texttt{fechado}.
+\end{itemize}
+
+\subsection{Reporte de Erros Semânticos}
+Diferentemente do analisador sintático, a análise semântica não precisa de recuperar o fluxo da árvore, uma vez que a estrutura do código já foi provada válida. Ao encontrar um erro de tipo ou uma entidade não declarada, o analisador registra a falha, associando-a à linha exata obtida durante a fase léxica, e continua a sua iteração para recolher todos os erros semânticos presentes no ficheiro antes de abortar a compilação final.
+
+\section{Geração de Código Intermediário e Final (YAML)}
+A fase final do compilador Homi consiste na síntese de código, onde a estrutura lógica validada é convertida na linguagem-alvo estruturada, neste caso, a especificação declarativa YAML utilizada pelo motor de automações do \textit{Home Assistant}.
+
+\subsection{Mapeamento de Semântica da Linguagem Alvo}
+Uma vez que a sintaxe Homi foi desenhada para aproximação com a linguagem humana (português), o gerador de código desempenha uma função de tradução semântica baseada em regras de mapeamento direto para os conceitos nativos da plataforma de destino.
+
+As principais regras automatizadas pelo gerador são:
+\begin{itemize}
+    \item \textbf{Normalização de Estados:} Os estados expressos em português como \texttt{ligado}, \texttt{aberto} ou \texttt{movimento} são normalizados sintaticamente para a string \texttt{'on'}. Analogamente, \texttt{desligado} e \texttt{fechado} mapeiam para \texttt{'off'}.
+    \item \textbf{Resolução de Serviços por Domínio:} O Home Assistant exige a declaração de serviços explícitos por tipologia de hardware. O gerador extrai dinamicamente o prefixo da entidade (\textit{domínio}) e concatena-o com a ação correspondente (ex: a ação \texttt{ligar} aplicada à entidade \texttt{light.sala\_estar} é mapeada programaticamente para o serviço \texttt{light.turn\_on}).
+    \item \textbf{Tratamento de Exceções de Notificação:} A ação especial \texttt{notificar} desvia o fluxo padrão e invoca o serviço global de mensagens persistentes (\texttt{notify.persistent\_notification}), encapsulando a \texttt{STRING} capturada como argumento de dados de mensagem.
+\end{itemize}
+
+\subsection{Emissão e Estruturação do Ficheiro Final}
+Para evitar a dependência de pacotes de serialização externos, o gerador monta a árvore sintática alvo através de um modelo estruturado de concatenação de strings com indentação rígida de dois espaços por nível, cumprindo as especificações do formato YAML. Cada automação recebe também a injeção de um identificador numérico único pseudo-aleatório (\texttt{id}) gerado em tempo de compilação, permitindo que o ficheiro gerado seja imediatamente importado, lido e editado através da interface gráfica nativa do \textit{Home Assistant}.
+
+\end{document}

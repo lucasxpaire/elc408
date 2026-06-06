@@ -6,7 +6,7 @@ A Análise Sintática verifica a estrutura gramatical do que foi digitado. Ela p
 1. **Gramática Livre de Contexto (GLC):** 
    É o conjunto de regras que inventamos. Ela diz que um `BlocoQuando` tem que ser seguido pela palavra `QUANDO` e depois por uma `RegraGatilho`. 
 
-2. **Parser Top-Down LL(1):**
+2. **Analisador Sint�tico Top-Down LL(1):**
    Existem várias formas de analisar gramática. Nós usamos a **Preditiva LL(1)**. 
    - **Top-Down:** Começamos pela regra mais alta (a raiz `Programa`) e vamos derivando até chegar nas palavras miúdas.
    - **LL(1):** Lemos o texto da Esquerda para a Direita (L), pegamos a derivação mais à Esquerda (L) e precisamos olhar apenas **1** palavra (Token) para frente para saber qual regra usar. Não tentamos adivinhar ou voltar atrás (backtracking).
