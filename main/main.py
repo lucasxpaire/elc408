@@ -21,12 +21,11 @@ def carregar_codigo_fonte():
     else:
         print("Aviso: Nenhum arquivo passado por parâmetro. Rodando código de teste embutido...\n")
         return """
-        AUTOMACAO "Ligar Luzes da Sala"
+        AUTOMACAO "Teste Temperatura"
         #teste comentario
-        QUANDO horario 18:00
-        SE light.sala_estar estiver desligado
-        ENTAO ligar light.sala_estar
-        E notificar "Luzes ligadas!"
+        QUANDO sensor.temperatura estiver quente
+        SE binary_sensor.porta estiver fechado
+        ENTAO notificar "Abra ás Portas!"
         """
 
 def salvar_arquivo_saida(codigo_final):

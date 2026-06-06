@@ -7,7 +7,7 @@ TOKEN_REGEX = [
     ('ENTAO',     r'\bENTAO\b'),
     ('OP_LOGICO', r'\b(E|OU|NAO)\b'),                      
     ('ACAO',      r'\b(ligar|desligar|alternar|notificar)\b'),
-    ('ESTADO',    r'\b(ligado|desligado|aberto|fechado|movimento|ocioso)\b'),
+    ('ESTADO',    r'\b(ligado|desligado|aberto|quente|frio|normal|fechado|movimento|ocioso)\b'),
     ('OPERADOR',  r'\b(for|estiver)\b'),
     ('TIPO_GATILHO', r'\b(horario|tempo)\b'),
     ('TEMPO_EXATO',r'\b\d{2}:\d{2}\b'),                    

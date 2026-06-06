@@ -82,7 +82,15 @@ class GeradorYAML:
                     entidade = tipo_node.valor
                     estado_pt = filho.filhos[2].valor
                     
-                    estado_en = 'on' if estado_pt in ['ligado', 'aberto', 'movimento'] else 'off'
+                    # Mapeamento estados
+                    mapa_estados = {
+                        'ligado': 'on', 'aberto': 'on', 'movimento': 'on',
+                        'desligado': 'off', 'fechado': 'off', 'ocioso': 'off',
+                        'quente': 'hot', 'frio': 'cold', 'normal': 'normal'
+                    }
+                    # Busca no mapa. Se por acaso não achar, mantém o estado original
+                    estado_en = mapa_estados.get(estado_pt, estado_pt)
+                                       
                     self.linhas_yaml.append("  - platform: state")
                     self.linhas_yaml.append(f"    entity_id: {entidade}")
                     self.linhas_yaml.append(f"    to: '{estado_en}'")
@@ -93,8 +101,15 @@ class GeradorYAML:
             entidade = cond['entidade']
             estado_pt = cond['estado']
             
-            estado_en = 'on' if estado_pt in ['ligado', 'aberto', 'movimento'] else 'off'
-            
+            # Mapeamento de estados
+            mapa_estados = {
+                'ligado': 'on', 'aberto': 'on', 'movimento': 'on',
+                'desligado': 'off', 'fechado': 'off', 'ocioso': 'off',
+                'quente': 'hot', 'frio': 'cold', 'normal': 'normal'
+            }
+            # Busca no mapa. Se por acaso não achar, mantém o estado original
+            estado_en = mapa_estados.get(estado_pt, estado_pt)
+                        
             self.linhas_yaml.append("  - condition: state")
             self.linhas_yaml.append(f"    entity_id: {entidade}")
             self.linhas_yaml.append(f"    state: '{estado_en}'")
