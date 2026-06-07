@@ -46,45 +46,64 @@ class AnalisadorSemantico:
         self.erros.append(erro)
 
     def validar_estado(self, no_regra):
+        """
+        Verifica se a condição solicitada faz sentido para a entidade.
+        Exemplo: Um 'sensor' pode estar 'quente', mas não 'ligado'.
+        """
+        # Garante que a regra possui filhos e que o primeiro é o ID da Entidade.
         if not no_regra.filhos or no_regra.filhos[0].tipo != 'ID_ENTIDADE':
             return
             
-        entidade_node = no_regra.filhos[0]
-        estado_node = no_regra.filhos[2]
+        no_entidade = no_regra.filhos[0]
+        no_estado = no_regra.filhos[2]
                 
-        if entidade_node and estado_node:
-            entidade = entidade_node.valor
-            estado = estado_node.valor
+        if no_entidade and no_estado:
+            entidade_id = no_entidade.valor
+            estado_desejado = no_estado.valor
             
-            if entidade not in self.tabela_simbolos:
-                self.reportar_erro(f"Entidade '{entidade}' não declarada na Tabela de Símbolos.")
+            # Passo 1: Verifica se a entidade existe na Tabela de Símbolos
+            if entidade_id not in self.tabela_simbolos:
+                self.reportar_erro(f"Entidade '{entidade_id}' não declarada na Tabela de Símbolos.")
                 return
                 
-            dominio = self.tabela_simbolos[entidade]
+            # Passo 2: Descobre o domínio (tipo) da entidade
+            dominio = self.tabela_simbolos[entidade_id]
             
-            if estado not in self.estados_permitidos.get(dominio, []):
-                self.reportar_erro(f"Incompatibilidade de Tipo: A entidade '{entidade}' ({dominio}) não suporta o estado '{estado}'.")
+            # Passo 3: Verifica se o domínio suporta o estado solicitado
+            if estado_desejado not in self.estados_permitidos.get(dominio, []):
+                self.reportar_erro(f"Incompatibilidade de Tipo: A entidade '{entidade_id}' ({dominio}) não suporta o estado '{estado_desejado}'.")
 
     def validar_comando(self, no_comando):
+        """
+        Verifica se a ação solicitada é aplicável ao tipo da entidade.
+        Exemplo: Pode-se 'ligar' uma 'lâmpada', mas não um 'sensor_num'.
+        """
+        # Garante que o comando tenha a estrutura esperada (Ação + Complemento)
         if len(no_comando.filhos) != 2:
             return
             
-        acao_node = no_comando.filhos[0]
-        complemento_node = no_comando.filhos[1]
+        no_acao = no_comando.filhos[0]
+        no_complemento = no_comando.filhos[1]
 
-        acao = acao_node.valor
-        if acao == 'notificar':
+        acao_desejada = no_acao.valor
+        
+        # O verbo 'notificar' independe de entidade física, então já é válido por padrão
+        if acao_desejada == 'notificar':
             return 
 
-        if complemento_node.filhos and complemento_node.filhos[0].tipo == 'ID_ENTIDADE':
-            id_entidade_node = complemento_node.filhos[0]
-            entidade = id_entidade_node.valor
+        # Se a ação alvejar uma entidade física (ex: ligar switch.tv)
+        if no_complemento.filhos and no_complemento.filhos[0].tipo == 'ID_ENTIDADE':
+            no_id_entidade = no_complemento.filhos[0]
+            entidade_id = no_id_entidade.valor
             
-            if entidade not in self.tabela_simbolos:
-                self.reportar_erro(f"Entidade '{entidade}' não declarada na Tabela de Símbolos.")
+            # Passo 1: Verifica se a entidade existe na Tabela de Símbolos
+            if entidade_id not in self.tabela_simbolos:
+                self.reportar_erro(f"Entidade '{entidade_id}' não declarada na Tabela de Símbolos.")
                 return
                 
-            dominio = self.tabela_simbolos[entidade]
+            # Passo 2: Descobre o domínio (tipo) da entidade
+            dominio = self.tabela_simbolos[entidade_id]
             
-            if acao not in self.acoes_permitidas.get(dominio, []):
-                self.reportar_erro(f"Incompatibilidade de Tipo: Não é possível '{acao}' a entidade '{entidade}' (Domínio: {dominio}).")
+            # Passo 3: Verifica se o domínio suporta a ação solicitada
+            if acao_desejada not in self.acoes_permitidas.get(dominio, []):
+                self.reportar_erro(f"Incompatibilidade de Tipo: Não é possível '{acao_desejada}' a entidade '{entidade_id}' (Domínio: {dominio}).")
