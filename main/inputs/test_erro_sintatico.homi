@@ -1,0 +1,3 @@
+AUTOMACAO "Erro Sintático"
+SE light.sala_estar estiver ligado
+ENTAO ligar light.quarto

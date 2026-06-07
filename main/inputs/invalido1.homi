@@ -1,5 +1,0 @@
-AUTOMACAO "Bug do Sensor"
-QUANDO horario 10:00
-SE sensor.temperatura estiver desligado
-ENTAO ligar sensor.temperatura
-E desligar binary_sensor.porta

@@ -1,0 +1,4 @@
+AUTOMACAO "Erro Léxico"
+QUANDO horario 10:00
+@invalido
+ENTAO ligar light.sala

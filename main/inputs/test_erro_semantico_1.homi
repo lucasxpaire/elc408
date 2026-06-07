@@ -1,0 +1,3 @@
+AUTOMACAO "Erro Semântico Sensor"
+QUANDO horario 10:00
+ENTAO ligar binary_sensor.porta

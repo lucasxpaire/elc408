@@ -1,0 +1,295 @@
+\documentclass[12pt, a4paper]{article}
+
+% Pacotes para o português e formatação
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath} 
+
+% Configuração para blocos de código
+\lstset{
+    backgroundcolor=\color{gray!10},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    tabsize=2,
+    showstringspaces=false,
+    literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+             {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+             {à}{{\`a}}1 {è}{{\`e}}1 {ì}{{\`i}}1 {ò}{{\`o}}1 {ù}{{\`u}}1
+             {À}{{\`A}}1 {È}{{\'E}}1 {Ì}{{\`I}}1 {Ò}{{\`O}}1 {Ù}{{\`U}}1
+             {ã}{{\~a}}1 {õ}{{\~o}}1 {Ã}{{\~A}}1 {Õ}{{\~O}}1
+             {â}{{\^a}}1 {ê}{{\^e}}1 {ô}{{\^o}}1 {Â}{{\^A}}1 {Ê}{{\^E}}1 {Ô}{{\^O}}1
+             {ç}{{\c{c}}}1 {Ç}{{\c{C}}}1
+}
+
+\title{\textbf{Trabalho Final: Compiladores}\\Construção do Compilador para a Linguagem Homi}
+\author{Carlos Eduardo Velozo e Lucas Xavier Pairé}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Introdução e Visão Geral}
+A linguagem \textbf{Homi} foi desenvolvida para simplificar a criação de automações no sistema \textit{Home Assistant}. O compilador traduz scripts lógicos, com estrutura baseada em Gatilhos (\texttt{QUANDO}), Condições (\texttt{SE}) e Ações (\texttt{ENTAO}), em arquivos de configuração declarativos no formato YAML, exigidos nativamente pelo sistema alvo.
+
+Abaixo é apresentado um script desenvolvido na linguagem Homi e o seu respectivo arquivo YAML gerado pelo compilador:
+
+\textbf{Script Homi Original:}
+\begin{lstlisting}
+AUTOMACAO "Rotina Noturna"
+QUANDO horario 22:30
+SE light.sala_estar estiver desligado
+ENTAO ligar light.quarto
+\end{lstlisting}
+
+\textbf{YAML Gerado pelo Compilador:}
+\begin{lstlisting}[language=YAML]
+- id: '4581293041'
+  alias: "Rotina Noturna"
+  description: "Gerado automaticamente pelo Compilador Homi"
+  triggers:
+  - platform: time
+    at: '22:30:00'
+  conditions:
+  - condition: state
+    entity_id: light.sala_estar
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.quarto
+  mode: single
+\end{lstlisting}
+
+\section{Fase 1: Analisador Léxico}
+O analisador léxico foi implementado em Python utilizando a biblioteca de Expressões Regulares (\texttt{re}). O algoritmo varre o código fonte agrupando a entrada em \textit{Tokens} estruturados e registrando o número da linha para a emissão de erros, enquanto caracteres de espaçamento e comentários são sumariamente ignorados.
+
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Token} & \textbf{Expressão Regular (Padrão)} & \textbf{Exemplo de Lexema} \\ \midrule
+\texttt{AUTOMACAO} & \texttt{\textbackslash bAUTOMACAO\textbackslash b} & AUTOMACAO \\
+\texttt{QUANDO} & \texttt{\textbackslash bQUANDO\textbackslash b} & QUANDO \\
+\texttt{SE} & \texttt{\textbackslash bSE\textbackslash b} & SE \\
+\texttt{ENTAO} & \texttt{\textbackslash bENTAO\textbackslash b} & ENTAO \\
+\texttt{OP\_LOGICO} & \texttt{\textbackslash b(E|OU|NAO)\textbackslash b} & E, OU \\
+\texttt{ACAO} & \texttt{\textbackslash b(ligar|desligar|alternar|notificar)\textbackslash b} & ligar, notificar \\
+\texttt{ESTADO} & \texttt{\textbackslash b(ligado|desligado|aberto|...|ocioso)\textbackslash b} & ligado, aberto \\
+\texttt{OPERADOR} & \texttt{\textbackslash b(for|estiver)\textbackslash b} & estiver \\
+\texttt{TIPO\_GATILHO} & \texttt{\textbackslash b(horario|tempo)\textbackslash b} & horario \\
+\texttt{TEMPO\_EXATO} & \texttt{\textbackslash b\textbackslash d\{2\}:\textbackslash d\{2\}\textbackslash b} & 22:30 \\
+\texttt{TEMPO\_UNIT} & \texttt{\textbackslash b\textbackslash d+(s|m|min|h|hs)\textbackslash b} & 10s, 5min \\
+\texttt{ID\_ENTIDADE} & \texttt{\textbackslash b{[}a-z\_{]}+\textbackslash .{[}a-z0-9\_{]}+\textbackslash b} & light.quarto \\
+\texttt{STRING} & \texttt{".*?"} & "Rotina Noturna" \\
+\texttt{ESPACO} & \texttt{{[} \textbackslash t{]}+} & (Ignorado) \\
+\texttt{NOVA\_LINHA} & \texttt{\textbackslash n} & (Ignorado) \\
+\texttt{COMENTARIO} & \texttt{\#.*} & \# (Ignorado) \\
+\texttt{ERRO} & \texttt{.} & (Qualquer outro caractere) \\ \bottomrule
+\end{tabular}%
+}
+\caption{Especificação completa de Tokens do Analisador Léxico}
+\end{table}
+
+\section{Fase 2: Analisador Sintático}
+O compilador utiliza um analisador sintático \textbf{Descendente Preditivo Tabular Não-Recursivo LL(1)}.
+
+\subsection{Gramática Livre de Contexto (GLC)}
+A gramática foi fatorada à esquerda e suas recursões foram eliminadas. Abaixo, os símbolos \textbf{Terminais} estão representados em formato monoespaçado (ex: \texttt{QUANDO}), enquanto os \textbf{Não-Terminais} estão em texto padrão (ex: BlocoQuando). O símbolo $\varepsilon$ (Epsilon) representa derivações vazias.
+
+\begin{enumerate}
+    \item $\text{Programa} \rightarrow \texttt{AUTOMACAO} \quad \texttt{STRING} \quad \text{BlocoQuando} \quad \text{BlocoSe} \quad \text{BlocoEntao}$
+    \item $\text{BlocoQuando} \rightarrow \texttt{QUANDO} \quad \text{RegraGatilho}$
+    \item $\text{RegraGatilho} \rightarrow \texttt{TIPO\_GATILHO} \quad \texttt{TEMPO\_EXATO}$
+    \item $\text{RegraGatilho} \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO}$
+    \item $\text{BlocoSe} \rightarrow \texttt{SE} \quad \text{RegraCondicao}$
+    \item $\text{BlocoSe} \rightarrow \varepsilon$
+    \item $\text{RegraCondicao} \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO} \quad \text{MaisCondicoes}$
+    \item $\text{MaisCondicoes} \rightarrow \texttt{OP\_LOGICO} \quad \text{RegraCondicao}$
+    \item $\text{MaisCondicoes} \rightarrow \varepsilon$
+    \item $\text{BlocoEntao} \rightarrow \texttt{ENTAO} \quad \text{Comando} \quad \text{MaisComandos}$
+    \item $\text{Comando} \rightarrow \texttt{ACAO} \quad \text{Complemento}$
+    \item $\text{Complemento} \rightarrow \texttt{ID\_ENTIDADE}$
+    \item $\text{Complemento} \rightarrow \texttt{STRING}$
+    \item $\text{MaisComandos} \rightarrow \texttt{OP\_LOGICO} \quad \text{Comando} \quad \text{MaisComandos}$
+    \item $\text{MaisComandos} \rightarrow \varepsilon$
+\end{enumerate}
+
+\subsection{Conjuntos FIRST e FOLLOW e Tabela Preditiva}
+Para comprovar o determinismo da tabela preditiva, os conjuntos FIRST e FOLLOW foram computados:
+
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Não-Terminal} & \textbf{FIRST} & \textbf{FOLLOW} \\ \midrule
+$\text{Programa}$ & $\{\texttt{AUTOMACAO}\}$ & $\{\$\}$ \\
+$\text{BlocoQuando}$ & $\{\texttt{QUANDO}\}$ & $\{\texttt{SE}, \texttt{ENTAO}\}$ \\
+$\text{RegraGatilho}$ & $\{\texttt{TIPO\_GATILHO}, \texttt{ID\_ENTIDADE}\}$ & $\{\texttt{SE}, \texttt{ENTAO}\}$ \\
+$\text{BlocoSe}$ & $\{\texttt{SE}, \varepsilon\}$ & $\{\texttt{ENTAO}\}$ \\
+$\text{RegraCondicao}$ & $\{\texttt{ID\_ENTIDADE}\}$ & $\{\texttt{ENTAO}\}$ \\
+$\text{MaisCondicoes}$ & $\{\texttt{OP\_LOGICO}, \varepsilon\}$ & $\{\texttt{ENTAO}\}$ \\
+$\text{BlocoEntao}$ & $\{\texttt{ENTAO}\}$ & $\{\$\}$ \\
+$\text{Comando}$ & $\{\texttt{ACAO}\}$ & $\{\texttt{OP\_LOGICO}, \$\}$ \\
+$\text{Complemento}$ & $\{\texttt{ID\_ENTIDADE}, \texttt{STRING}\}$ & $\{\texttt{OP\_LOGICO}, \$\}$ \\
+$\text{MaisComandos}$ & $\{\texttt{OP\_LOGICO}, \varepsilon\}$ & $\{\$\}$ \\ \bottomrule
+\end{tabular}%
+}
+\caption{Conjuntos FIRST e FOLLOW}
+\end{table}
+
+A intersecção desses conjuntos preenche a Tabela Preditiva Mapeada a seguir, cujas produções guiam o algoritmo de desempilhamento:
+
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Não-Terminal} & \textbf{Entradas Ativas e Produções Mapeadas} \\ \midrule
+$\text{Programa}$ & $[\texttt{AUTOMACAO}] \rightarrow \texttt{AUTOMACAO} \quad \texttt{STRING} \quad \text{BlocoQuando} \quad \text{BlocoSe} \quad \text{BlocoEntao}$ \\ \midrule
+$\text{BlocoQuando}$ & $[\texttt{QUANDO}] \rightarrow \texttt{QUANDO} \quad \text{RegraGatilho}$ \\ \midrule
+$\text{RegraGatilho}$ & $[\texttt{TIPO\_GATILHO}] \rightarrow \texttt{TIPO\_GATILHO} \quad \texttt{TEMPO\_EXATO}$ \\
+ & $[\texttt{ID\_ENTIDADE}] \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO}$ \\ \midrule
+$\text{BlocoSe}$ & $[\texttt{SE}] \rightarrow \texttt{SE} \quad \text{RegraCondicao}$ \\
+ & $[\texttt{ENTAO}] \rightarrow \varepsilon$ \\ \midrule
+$\text{RegraCondicao}$ & $[\texttt{ID\_ENTIDADE}] \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO} \quad \text{MaisCondicoes}$ \\ \midrule
+$\text{MaisCondicoes}$ & $[\texttt{OP\_LOGICO}] \rightarrow \texttt{OP\_LOGICO} \quad \text{RegraCondicao}$ \\
+ & $[\texttt{ENTAO}] \rightarrow \varepsilon$ \\ \midrule
+$\text{BlocoEntao}$ & $[\texttt{ENTAO}] \rightarrow \texttt{ENTAO} \quad \text{Comando} \quad \text{MaisComandos}$ \\ \midrule
+$\text{Comando}$ & $[\texttt{ACAO}] \rightarrow \texttt{ACAO} \quad \text{Complemento}$ \\ \midrule
+$\text{Complemento}$ & $[\texttt{ID\_ENTIDADE}] \rightarrow \texttt{ID\_ENTIDADE}$ \\
+ & $[\texttt{STRING}] \rightarrow \texttt{STRING}$ \\ \midrule
+$\text{MaisComandos}$ & $[\texttt{OP\_LOGICO}] \rightarrow \texttt{OP\_LOGICO} \quad \text{Comando} \quad \text{MaisComandos}$ \\
+ & $[\text{EOF}] \rightarrow \varepsilon$ \\ \bottomrule
+\end{tabular}%
+}
+\caption{Matriz Estruturada da Tabela Preditiva LL(1)}
+\end{table}
+
+\subsection{Recuperação de Erros por Modo Pânico}
+Para conferir tolerância a falhas, implementou-se a estratégia de \textbf{Modo Pânico}. Ao identificar um token inválido, o analisador suspende a validação e descarta tokens contínua e sequencialmente até atingir um dos símbolos de sincronização principais: $\{\texttt{QUANDO}, \texttt{SE}, \texttt{ENTAO}, \texttt{EOF}\}$. Isso permite isolar a instrução corrompida e continuar analisando os blocos subsequentes, relatando múltiplos erros de uma vez.
+
+\section{Fase 3: Analisador Semântico}
+O analisador semântico foca em validar a consistência lógica das instruções frente ao domínio do \textit{Home Assistant}.
+
+\subsection{Tabela de Símbolos}
+Foi implementada em memória uma Tabela de Símbolos responsável por registrar os identificadores de entidades e seus respectivos domínios (tipos físicos). 
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Identificador da Entidade (\texttt{ID\_ENTIDADE})} & \textbf{Domínio / Tipo Associado} \\ \midrule
+\texttt{light.sala\_estar} & \texttt{light} (Iluminação) \\
+\texttt{switch.ilha\_interruptor} & \texttt{switch} (Interruptor) \\
+\texttt{sensor.porta\_entrada} & \texttt{binary\_sensor} (Sensor Binário) \\ \bottomrule
+\end{tabular}
+\caption{Exemplo de mapeamento na Tabela de Símbolos}
+\end{table}
+
+A partir do cruzamento dessas informações, duas restrições semânticas centrais foram implementadas:
+\begin{itemize}
+    \item \textbf{Validação de Ações:} Impede comandos incompatíveis com a natureza do hardware (ex: enviar a ação \texttt{ligar} a um sensor, que atua exclusivamente como entidade de leitura).
+    \item \textbf{Validação de Estados:} Rejeita checagens irreais baseadas no tipo mapeado da entidade. Por exemplo, uma entidade do tipo \texttt{light} aceita os estados \texttt{ligado} ou \texttt{desligado}, mas disparará um erro semântico se checada contra o estado \texttt{aberto}.
+\end{itemize}
+
+\section{Fase 4: Geração de Código}
+Nesta etapa de síntese, a árvore sintática previamente validada é traduzida para a linguagem-alvo estruturada. O gerador de código converte a lógica declarativa em português para os blocos equivalentes nativos do Home Assistant no formato YAML.
+
+Para suprir o vocabulário exigido pelo formato alvo, o compilador automatiza as seguintes conversões essenciais:
+\begin{itemize}
+    \item \textbf{Injeção de Metadados:} Toda automação gerada recebe um \texttt{id} numérico único (aleatório com 10 dígitos) e a propriedade de execução mandatória \texttt{mode: single}.
+    \item \textbf{Gatilhos (\texttt{QUANDO}):} Gatilhos baseados em relógio mapeiam para \texttt{platform: time}, com inserção automática de segundos (ex: \texttt{22:30} torna-se \texttt{22:30:00}). Gatilhos baseados em mudança de dispositivo geram um bloco \texttt{platform: state}.
+    \item \textbf{Normalização de Estados:} Uma tabela \textit{hash} embutida traduz estados em português para a base nativa (\textit{inglês}). Termos dinâmicos como \texttt{ligado}, \texttt{aberto} e \texttt{movimento} são centralizados como \texttt{'on'}. Analogamente, \texttt{desligado}, \texttt{fechado} e \texttt{ocioso} geram \texttt{'off'}, enquanto \texttt{quente} vira \texttt{'hot'}, e \texttt{frio} vira \texttt{'cold'}.
+    \item \textbf{Resolução de Ações Físicas (\texttt{ENTAO}):} O gerador traduz o verbo (\texttt{ligar} $\rightarrow$ \texttt{turn\_on}, \texttt{desligar} $\rightarrow$ \texttt{turn\_off}, \texttt{alternar} $\rightarrow$ \texttt{toggle}) e o concatena dinamicamente ao domínio da entidade afetada extraído na hora. Por exemplo, ligar o alvo \texttt{light.sala} gera a chamada algorítmica ao serviço \texttt{light.turn\_on}.
+    \item \textbf{Serviço de Notificações:} A ação nativa \texttt{notificar} desvia do fluxo de dispositivos padrão para gerar o serviço de sistema \texttt{notify.persistent\_notification}, encapsulando a \texttt{STRING} lida pelo analisador como argumento da propriedade estrutural \texttt{message}.
+\end{itemize}
+
+Com os nós traduzidos, a síntese final consolida o documento YAML serializando os dados através de concatenação de blocos com indentação estrita de dois espaços. O arquivo emitido está imediatamente pronto para importação via interface do Home Assistant.
+
+\section{Exemplos Adicionais e Tratamento de Erros}
+Para demonstrar a robustez do compilador em todas as fases, foram elaborados cenários de teste projetados propositalmente para acionar os mecanismos de contenção de erros de cada analisador. Quando qualquer um desses cenários ocorre, a geração do YAML final é rigorosamente abortada.
+
+\subsection{Erro Léxico (Caracteres Inválidos)}
+O analisador léxico descarta os caracteres não reconhecidos sem abortar imediatamente a leitura (processando o restante da string), emitindo logs exatos da linha afetada.
+
+\textbf{Script de Entrada:}
+\begin{lstlisting}
+AUTOMACAO "Erro Léxico"
+QUANDO horario 10:00
+@invalido
+ENTAO ligar light.sala_estar
+\end{lstlisting}
+
+\textbf{Saída do Compilador:}
+\begin{lstlisting}[language=bash]
+[ERRO LÉXICO] Caractere ou palavra inválida '@' na linha 3
+[ERRO LÉXICO] Caractere ou palavra inválida 'i' na linha 3
+...
+[ERRO LÉXICO] Caractere ou palavra inválida 'o' na linha 3
+\end{lstlisting}
+
+\subsection{Erro Sintático (Estrutura Incompleta e Modo Pânico)}
+Neste teste, a omissão proposital da palavra-chave inicial \texttt{QUANDO} força um erro sintático. O \textbf{Modo Pânico} entra em ação, descartando tokens até localizar um ponto estrutural seguro para continuar a compilação e achar outros erros no arquivo.
+
+\textbf{Script de Entrada:}
+\begin{lstlisting}
+AUTOMACAO "Erro Sintático"
+SE light.sala_estar estiver ligado
+ENTAO ligar light.quarto
+\end{lstlisting}
+
+\textbf{Saída do Compilador:}
+\begin{lstlisting}[language=bash]
+[ERRO SINTÁTICO] Falha ao derivar 'BlocoQuando' com token 'SE' na linha 2.
+[ERRO SINTÁTICO] Modo Pânico ativado na linha 2. Descartando tokens até encontrar: ['QUANDO', 'SE', 'ENTAO', 'EOF']
+\end{lstlisting}
+
+\subsection{Erro Semântico (Ação Incompatível com o Hardware)}
+A instrução tenta aplicar a ação \texttt{ligar} a uma entidade do domínio de leitura \texttt{binary\_sensor}, violando as regras cruzadas na Tabela de Símbolos.
+
+\textbf{Script de Entrada:}
+\begin{lstlisting}
+AUTOMACAO "Erro Semântico Sensor"
+QUANDO horario 10:00
+ENTAO ligar binary_sensor.porta
+\end{lstlisting}
+
+\textbf{Saída do Compilador:}
+\begin{lstlisting}[language=bash]
+[ERRO SEMÂNTICO] Incompatibilidade de Tipo: Não é possível 'ligar' a entidade 'binary_sensor.porta' (Domínio: binary_sensor).
+\end{lstlisting}
+
+\subsection{Erro Semântico (Estado Incompatível)}
+A instrução tenta verificar se uma iluminação (\texttt{light}) possui o estado \texttt{aberto}. Por não fazer sentido físico no domínio, o semântico intercepta a falha.
+
+\textbf{Script de Entrada:}
+\begin{lstlisting}
+AUTOMACAO "Erro Semântico Estado"
+QUANDO horario 10:00
+SE light.sala_estar estiver aberto
+ENTAO ligar light.quarto
+\end{lstlisting}
+
+\textbf{Saída do Compilador:}
+\begin{lstlisting}[language=bash]
+[ERRO SEMÂNTICO] Incompatibilidade de Tipo: A entidade 'light.sala_estar' (light) não suporta o estado 'aberto'.
+\end{lstlisting}
+
+Esses cenários provam que a arquitetura do compilador não apenas traduz com sucesso casos ideais, mas também intercepta falhas clássicas de lógica e de gramática, prevenindo de forma absoluta a geração de YAMLs corrompidos.
+
+\end{document}

@@ -1,0 +1,4 @@
+AUTOMACAO "Erro Semântico Estado"
+QUANDO horario 10:00
+SE light.sala_estar estiver aberto
+ENTAO ligar light.quarto
