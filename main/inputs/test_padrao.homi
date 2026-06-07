@@ -1,0 +1,5 @@
+AUTOMACAO "Teste Temperatura"
+#teste comentario
+QUANDO sensor.temperatura estiver quente
+SE binary_sensor.porta estiver fechado
+ENTAO notificar "Abra ás Portas!"
