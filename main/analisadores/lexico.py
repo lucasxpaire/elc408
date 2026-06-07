@@ -1,4 +1,11 @@
 import re
+from dataclasses import dataclass
+
+@dataclass
+class Token:
+    tipo: str
+    valor: str
+    linha: int
 
 TOKEN_REGEX = [
     ('AUTOMACAO', r'\bAUTOMACAO\b'),
@@ -41,6 +48,6 @@ class AnalisadorLexico:
             elif tipo_token == 'ERRO':
                 self.erros.append(f"[ERRO LÉXICO] Caractere ou palavra inválida '{valor_token}' na linha {self.linha_atual}")
             else:
-                self.tokens_encontrados.append((tipo_token, valor_token, self.linha_atual))
+                self.tokens_encontrados.append(Token(tipo_token, valor_token, self.linha_atual))
                 
         return self.tokens_encontrados
