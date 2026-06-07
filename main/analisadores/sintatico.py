@@ -1,4 +1,4 @@
-from estruturas.arvore import CSTNode
+from estruturas.nodo_cst import NodoCST
 from analisadores.lexico import Token
 
 TOKEN_EOF = 'EOF'
@@ -17,7 +17,7 @@ class AnalisadorSintatico:
         self.posicao = 0
         self.token_atual = self.tokens[self.posicao]
         
-        self.arvore = CSTNode('Programa')
+        self.arvore = NodoCST('Programa')
         
         self.pilha = [(SIMBOLO_FIM_PILHA, None), ('Programa', self.arvore)]
         
@@ -132,7 +132,7 @@ class AnalisadorSintatico:
                     self._log_iteracao(iteracao, f"{simbolo_topo} -> {producao_str}")
                     
                     # Cria nós na Árvore Sintática para os resultados dessa derivação.
-                    novos_nos = [CSTNode(simbolo) for simbolo in producao]
+                    novos_nos = [NodoCST(simbolo) for simbolo in producao]
                     if no_atual:
                         no_atual.filhos.extend(novos_nos)
                     
