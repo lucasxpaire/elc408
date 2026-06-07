@@ -4,6 +4,13 @@ class GeradorYAML:
     def __init__(self, arvore):
         self.arvore = arvore
         self.linhas_yaml = [] 
+        
+        # Mapa centralizado para traduzir o vocabulário da linguagem para o padrão do Home Assistant (inglês)
+        self.mapa_estados = {
+            'ligado': 'on', 'aberto': 'on', 'movimento': 'on',
+            'desligado': 'off', 'fechado': 'off', 'ocioso': 'off',
+            'quente': 'hot', 'frio': 'cold', 'normal': 'normal'
+        }
 
     def gerar(self):
         self.linhas_yaml = []
@@ -82,14 +89,8 @@ class GeradorYAML:
                     entidade = tipo_node.valor
                     estado_pt = filho.filhos[2].valor
                     
-                    # Mapeamento estados
-                    mapa_estados = {
-                        'ligado': 'on', 'aberto': 'on', 'movimento': 'on',
-                        'desligado': 'off', 'fechado': 'off', 'ocioso': 'off',
-                        'quente': 'hot', 'frio': 'cold', 'normal': 'normal'
-                    }
-                    # Busca no mapa. Se por acaso não achar, mantém o estado original
-                    estado_en = mapa_estados.get(estado_pt, estado_pt)
+                    # Busca o estado traduzido. Se não achar, mantém o estado original.
+                    estado_en = self.mapa_estados.get(estado_pt, estado_pt)
                                        
                     self.linhas_yaml.append("  - platform: state")
                     self.linhas_yaml.append(f"    entity_id: {entidade}")
@@ -101,14 +102,8 @@ class GeradorYAML:
             entidade = cond['entidade']
             estado_pt = cond['estado']
             
-            # Mapeamento de estados
-            mapa_estados = {
-                'ligado': 'on', 'aberto': 'on', 'movimento': 'on',
-                'desligado': 'off', 'fechado': 'off', 'ocioso': 'off',
-                'quente': 'hot', 'frio': 'cold', 'normal': 'normal'
-            }
-            # Busca no mapa. Se por acaso não achar, mantém o estado original
-            estado_en = mapa_estados.get(estado_pt, estado_pt)
+            # Busca o estado traduzido
+            estado_en = self.mapa_estados.get(estado_pt, estado_pt)
                         
             self.linhas_yaml.append("  - condition: state")
             self.linhas_yaml.append(f"    entity_id: {entidade}")
@@ -133,28 +128,18 @@ class GeradorYAML:
             acao = cmd['acao']
             alvo = cmd['alvo']
             
-            if acao == 'ligar':
-                dominio = alvo.split('.')[0]
-                self.linhas_yaml.append(f"  - action: {dominio}.turn_on")
-                self.linhas_yaml.append("    target:")
-                self.linhas_yaml.append(f"      entity_id: {alvo}")
-                
-            elif acao == 'desligar':
-                dominio = alvo.split('.')[0]
-                self.linhas_yaml.append(f"  - action: {dominio}.turn_off")
-                self.linhas_yaml.append("    target:")
-                self.linhas_yaml.append(f"      entity_id: {alvo}")
-                
-            elif acao == 'alternar':
-                dominio = alvo.split('.')[0]
-                self.linhas_yaml.append(f"  - action: {dominio}.toggle")
-                self.linhas_yaml.append("    target:")
-                self.linhas_yaml.append(f"      entity_id: {alvo}")
-                
-            elif acao == 'notificar':
+            if acao == 'notificar':
                 self.linhas_yaml.append("  - action: notify.persistent_notification")
                 self.linhas_yaml.append("    data:")
                 self.linhas_yaml.append(f"      message: {alvo}")
+            else:
+                # Tratamento unificado para as ações físicas (ligar, desligar, alternar)
+                dominio = alvo.split('.')[0] # Extrai 'light' de 'light.sala_estar'
+                acao_yaml = {'ligar': 'turn_on', 'desligar': 'turn_off', 'alternar': 'toggle'}
+                
+                self.linhas_yaml.append(f"  - action: {dominio}.{acao_yaml.get(acao, acao)}")
+                self.linhas_yaml.append("    target:")
+                self.linhas_yaml.append(f"      entity_id: {alvo}")
 
     def extrair_comandos(self, no):
         comandos = []
