@@ -231,18 +231,19 @@ Para conferir tolerância a falhas, implementou-se a estratégia de \textbf{Modo
 O analisador semântico foca em validar a consistência lógica das instruções frente ao domínio do \textit{Home Assistant}.
 
 \subsection{Tabela de Símbolos}
-Foi implementada em memória uma Tabela de Símbolos responsável por registrar os identificadores de entidades e seus respectivos domínios (tipos físicos). 
+Foi implementada em memória uma Tabela de Símbolos responsável por registrar os identificadores de entidades e seus respectivos domínios. Para garantir a extensibilidade da linguagem e permitir o uso de novos dispositivos sem a necessidade de atualização prévia no compilador, a Tabela de Símbolos é populada de forma dinâmica. O analisador semântico extrai o prefixo do \texttt{ID\_ENTIDADE} e o registra automaticamente na tabela como sendo o domínio correspondente daquele dispositivo.
 
 \begin{table}[H]
 \centering
 \begin{tabular}{@{}ll@{}}
 \toprule
-\textbf{Identificador da Entidade (\texttt{ID\_ENTIDADE})} & \textbf{Domínio / Tipo Associado} \\ \midrule
-\texttt{light.sala\_estar} & \texttt{light} (Iluminação) \\
-\texttt{switch.ilha\_interruptor} & \texttt{switch} (Interruptor) \\
-\texttt{sensor.porta\_entrada} & \texttt{binary\_sensor} (Sensor Binário) \\ \bottomrule
+\textbf{Identificador da Entidade Lida (\texttt{ID\_ENTIDADE})} & \textbf{Domínio Inferido Dinamicamente} \\ \midrule
+\texttt{light.sala\_estar} & \texttt{light} \\
+\texttt{switch.ilha\_interruptor} & \texttt{switch} \\
+\texttt{sensor.temperatura} & \texttt{sensor} \\
+\texttt{binary\_sensor.porta\_entrada} & \texttt{binary\_sensor} \\ \bottomrule
 \end{tabular}
-\caption{Exemplo de mapeamento na Tabela de Símbolos}
+\caption{Exemplo de inserção dinâmica na Tabela de Símbolos}
 \end{table}
 
 A partir do cruzamento dessas informações, duas restrições semânticas centrais foram implementadas:

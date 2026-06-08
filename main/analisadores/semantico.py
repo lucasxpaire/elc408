@@ -4,28 +4,19 @@ class AnalisadorSemantico:
         self.arvore = arvore
         self.erros = [] 
         
-        self.tabela_simbolos = {
-            'light.sala_estar': 'light',
-            'light.quarto': 'light',
-            'switch.tv': 'switch',
-            'switch.ilha_interruptor_1': 'switch',
-            'binary_sensor.porta': 'binary_sensor',
-            'sensor.temperatura': 'sensor_num',
-            'sensor.temperature_living_room': 'sensor_num'
-        }
-        
+        self.tabela_simbolos = {}        
         self.acoes_permitidas = {
             'light': ['ligar', 'desligar', 'alternar'],
             'switch': ['ligar', 'desligar', 'alternar'],
             'binary_sensor': [],
-            'sensor_num': []
+            'sensor': []
         }
         
         self.estados_permitidos = {
             'light': ['ligado', 'desligado'],
             'switch': ['ligado', 'desligado'],
             'binary_sensor': ['aberto', 'fechado', 'movimento', 'ocioso'],
-            'sensor_num': ['quente', 'frio', 'normal'] 
+            'sensor': ['quente', 'frio', 'normal'] 
         }
 
     def analisar(self):
@@ -61,13 +52,12 @@ class AnalisadorSemantico:
             entidade_id = no_entidade.valor
             estado_desejado = no_estado.valor
             
-            # Passo 1: Verifica se a entidade existe na Tabela de Símbolos
+            # Passo 1: Descobre o domínio (tipo) da entidade dinamicamente
+            dominio = entidade_id.split('.')[0]
+            
+            # Passo 2: Insere na Tabela de Símbolos caso não exista
             if entidade_id not in self.tabela_simbolos:
-                self.reportar_erro(f"Entidade '{entidade_id}' não declarada na Tabela de Símbolos.")
-                return
-                
-            # Passo 2: Descobre o domínio (tipo) da entidade
-            dominio = self.tabela_simbolos[entidade_id]
+                self.tabela_simbolos[entidade_id] = dominio
             
             # Passo 3: Verifica se o domínio suporta o estado solicitado
             if estado_desejado not in self.estados_permitidos.get(dominio, []):
@@ -76,7 +66,7 @@ class AnalisadorSemantico:
     def validar_comando(self, no_comando):
         """
         Verifica se a ação solicitada é aplicável ao tipo da entidade.
-        Exemplo: Pode-se 'ligar' uma 'lâmpada', mas não um 'sensor_num'.
+        Exemplo: Pode-se 'ligar' uma 'lâmpada', mas não um 'sensor'.
         """
         # Garante que o comando tenha a estrutura esperada (Ação + Complemento)
         if len(no_comando.filhos) != 2:
@@ -96,13 +86,12 @@ class AnalisadorSemantico:
             no_id_entidade = no_complemento.filhos[0]
             entidade_id = no_id_entidade.valor
             
-            # Passo 1: Verifica se a entidade existe na Tabela de Símbolos
+            # Passo 1: Descobre o domínio (tipo) da entidade dinamicamente
+            dominio = entidade_id.split('.')[0]
+            
+            # Passo 2: Insere na Tabela de Símbolos caso não exista
             if entidade_id not in self.tabela_simbolos:
-                self.reportar_erro(f"Entidade '{entidade_id}' não declarada na Tabela de Símbolos.")
-                return
-                
-            # Passo 2: Descobre o domínio (tipo) da entidade
-            dominio = self.tabela_simbolos[entidade_id]
+                self.tabela_simbolos[entidade_id] = dominio
             
             # Passo 3: Verifica se o domínio suporta a ação solicitada
             if acao_desejada not in self.acoes_permitidas.get(dominio, []):
