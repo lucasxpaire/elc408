@@ -13,6 +13,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{amsmath} 
+\usepackage{makecell}
 
 % Configuração para blocos de código
 \lstset{
@@ -113,8 +114,10 @@ A gramática foi fatorada à esquerda e suas recursões foram eliminadas. Abaixo
 \begin{enumerate}
     \item $\text{Programa} \rightarrow \texttt{AUTOMACAO} \quad \texttt{STRING} \quad \text{BlocoQuando} \quad \text{BlocoSe} \quad \text{BlocoEntao}$
     \item $\text{BlocoQuando} \rightarrow \texttt{QUANDO} \quad \text{RegraGatilho}$
-    \item $\text{RegraGatilho} \rightarrow \texttt{TIPO\_GATILHO} \quad \texttt{TEMPO\_EXATO}$
+    \item $\text{RegraGatilho} \rightarrow \texttt{TIPO\_GATILHO} \quad \text{ComplementoGatilho}$
     \item $\text{RegraGatilho} \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO}$
+    \item $\text{ComplementoGatilho} \rightarrow \texttt{TEMPO\_EXATO}$
+    \item $\text{ComplementoGatilho} \rightarrow \texttt{TEMPO\_UNIT}$
     \item $\text{BlocoSe} \rightarrow \texttt{SE} \quad \text{RegraCondicao}$
     \item $\text{BlocoSe} \rightarrow \varepsilon$
     \item $\text{RegraCondicao} \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO} \quad \text{MaisCondicoes}$
@@ -140,6 +143,7 @@ Para comprovar o determinismo da tabela preditiva, os conjuntos FIRST e FOLLOW f
 $\text{Programa}$ & $\{\texttt{AUTOMACAO}\}$ & $\{\$\}$ \\
 $\text{BlocoQuando}$ & $\{\texttt{QUANDO}\}$ & $\{\texttt{SE}, \texttt{ENTAO}\}$ \\
 $\text{RegraGatilho}$ & $\{\texttt{TIPO\_GATILHO}, \texttt{ID\_ENTIDADE}\}$ & $\{\texttt{SE}, \texttt{ENTAO}\}$ \\
+$\text{ComplementoGatilho}$ & $\{\texttt{TEMPO\_EXATO}, \texttt{TEMPO\_UNIT}\}$ & $\{\texttt{SE}, \texttt{ENTAO}\}$ \\
 $\text{BlocoSe}$ & $\{\texttt{SE}, \varepsilon\}$ & $\{\texttt{ENTAO}\}$ \\
 $\text{RegraCondicao}$ & $\{\texttt{ID\_ENTIDADE}\}$ & $\{\texttt{ENTAO}\}$ \\
 $\text{MaisCondicoes}$ & $\{\texttt{OP\_LOGICO}, \varepsilon\}$ & $\{\texttt{ENTAO}\}$ \\
@@ -152,32 +156,72 @@ $\text{MaisComandos}$ & $\{\texttt{OP\_LOGICO}, \varepsilon\}$ & $\{\$\}$ \\ \bo
 \caption{Conjuntos FIRST e FOLLOW}
 \end{table}
 
-A intersecção desses conjuntos preenche a Tabela Preditiva Mapeada a seguir, cujas produções guiam o algoritmo de desempilhamento:
+A intersecção desses conjuntos preenche a Tabela Preditiva LL(1). Por se tratar de uma matriz esparsa com muitos terminais, a representação bidimensional (onde as linhas representam Não-Terminais e as colunas os Terminais) foi fracionada em três tabelas menores para assegurar a legibilidade das produções. Células vazias indicam transições inexistentes (erros sintáticos).
 
 \begin{table}[H]
 \centering
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{@{}ll@{}}
-\toprule
-\textbf{Não-Terminal} & \textbf{Entradas Ativas e Produções Mapeadas} \\ \midrule
-$\text{Programa}$ & $[\texttt{AUTOMACAO}] \rightarrow \texttt{AUTOMACAO} \quad \texttt{STRING} \quad \text{BlocoQuando} \quad \text{BlocoSe} \quad \text{BlocoEntao}$ \\ \midrule
-$\text{BlocoQuando}$ & $[\texttt{QUANDO}] \rightarrow \texttt{QUANDO} \quad \text{RegraGatilho}$ \\ \midrule
-$\text{RegraGatilho}$ & $[\texttt{TIPO\_GATILHO}] \rightarrow \texttt{TIPO\_GATILHO} \quad \texttt{TEMPO\_EXATO}$ \\
- & $[\texttt{ID\_ENTIDADE}] \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO}$ \\ \midrule
-$\text{BlocoSe}$ & $[\texttt{SE}] \rightarrow \texttt{SE} \quad \text{RegraCondicao}$ \\
- & $[\texttt{ENTAO}] \rightarrow \varepsilon$ \\ \midrule
-$\text{RegraCondicao}$ & $[\texttt{ID\_ENTIDADE}] \rightarrow \texttt{ID\_ENTIDADE} \quad \texttt{OPERADOR} \quad \texttt{ESTADO} \quad \text{MaisCondicoes}$ \\ \midrule
-$\text{MaisCondicoes}$ & $[\texttt{OP\_LOGICO}] \rightarrow \texttt{OP\_LOGICO} \quad \text{RegraCondicao}$ \\
- & $[\texttt{ENTAO}] \rightarrow \varepsilon$ \\ \midrule
-$\text{BlocoEntao}$ & $[\texttt{ENTAO}] \rightarrow \texttt{ENTAO} \quad \text{Comando} \quad \text{MaisComandos}$ \\ \midrule
-$\text{Comando}$ & $[\texttt{ACAO}] \rightarrow \texttt{ACAO} \quad \text{Complemento}$ \\ \midrule
-$\text{Complemento}$ & $[\texttt{ID\_ENTIDADE}] \rightarrow \texttt{ID\_ENTIDADE}$ \\
- & $[\texttt{STRING}] \rightarrow \texttt{STRING}$ \\ \midrule
-$\text{MaisComandos}$ & $[\texttt{OP\_LOGICO}] \rightarrow \texttt{OP\_LOGICO} \quad \text{Comando} \quad \text{MaisComandos}$ \\
- & $[\text{EOF}] \rightarrow \varepsilon$ \\ \bottomrule
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Não-Terminal} & \textbf{AUTOMACAO} & \textbf{QUANDO} & \textbf{TIPO\_GATILHO} & \textbf{TEMPO\_EXATO} & \textbf{TEMPO\_UNIT} \\ \hline
+$\text{Programa}$ & \makecell{$\text{Prog} \rightarrow \texttt{AUTOMACAO} \quad \texttt{STRING}$\\$\text{BlocoQuando} \quad \text{BlocoSe} \quad \text{BlocoEntao}$} & & & & \\ \hline
+$\text{BlocoQuando}$ & & \makecell{$\text{BlocoQuando} \rightarrow$\\$\texttt{QUANDO} \quad \text{RegraGatilho}$} & & & \\ \hline
+$\text{RegraGatilho}$ & & & \makecell{$\text{RegraGatilho} \rightarrow$\\$\texttt{TIPO\_GATILHO} \quad \text{CompGatilho}$} & & \\ \hline
+$\text{ComplementoGatilho}$ & & & & \makecell{$\text{CompGat} \rightarrow$\\$\texttt{TEMPO\_EXATO}$} & \makecell{$\text{CompGat} \rightarrow$\\$\texttt{TEMPO\_UNIT}$} \\ \hline
+$\text{BlocoSe}$ & & & & & \\ \hline
+$\text{RegraCondicao}$ & & & & & \\ \hline
+$\text{MaisCondicoes}$ & & & & & \\ \hline
+$\text{BlocoEntao}$ & & & & & \\ \hline
+$\text{Comando}$ & & & & & \\ \hline
+$\text{Complemento}$ & & & & & \\ \hline
+$\text{MaisComandos}$ & & & & & \\ \hline
 \end{tabular}%
 }
-\caption{Matriz Estruturada da Tabela Preditiva LL(1)}
+\caption{Matriz LL(1) - Parte 1: Início e Gatilhos}
+\end{table}
+
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Não-Terminal} & \textbf{ID\_ENTIDADE} & \textbf{OPERADOR} & \textbf{ESTADO} & \textbf{STRING} & \textbf{ACAO} \\ \hline
+$\text{Programa}$ & & & & & \\ \hline
+$\text{BlocoQuando}$ & & & & & \\ \hline
+$\text{RegraGatilho}$ & \makecell{$\text{RegraGat} \rightarrow \texttt{ID\_ENTIDADE}$\\$\texttt{OPERADOR} \quad \texttt{ESTADO}$} & & & & \\ \hline
+$\text{ComplementoGatilho}$ & & & & & \\ \hline
+$\text{BlocoSe}$ & & & & & \\ \hline
+$\text{RegraCondicao}$ & \makecell{$\text{RegraCond} \rightarrow \texttt{ID\_ENTIDADE}$\\$\texttt{OPERADOR} \quad \texttt{ESTADO} \quad \text{MaisCond}$} & & & & \\ \hline
+$\text{MaisCondicoes}$ & & & & & \\ \hline
+$\text{BlocoEntao}$ & & & & & \\ \hline
+$\text{Comando}$ & & & & & \makecell{$\text{Comando} \rightarrow$\\$\texttt{ACAO} \quad \text{Complemento}$} \\ \hline
+$\text{Complemento}$ & $\text{Comp} \rightarrow \texttt{ID\_ENTIDADE}$ & & & $\text{Comp} \rightarrow \texttt{STRING}$ & \\ \hline
+$\text{MaisComandos}$ & & & & & \\ \hline
+\end{tabular}%
+}
+\caption{Matriz LL(1) - Parte 2: Entidades e Ações}
+\end{table}
+
+\begin{table}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Não-Terminal} & \textbf{SE} & \textbf{ENTAO} & \textbf{OP\_LOGICO} & \textbf{EOF (\$)} \\ \hline
+$\text{Programa}$ & & & & \\ \hline
+$\text{BlocoQuando}$ & & & & \\ \hline
+$\text{RegraGatilho}$ & & & & \\ \hline
+$\text{ComplementoGatilho}$ & & & & \\ \hline
+$\text{BlocoSe}$ & \makecell{$\text{BlocoSe} \rightarrow$\\$\texttt{SE} \quad \text{RegraCondicao}$} & $\text{BlocoSe} \rightarrow \varepsilon$ & & \\ \hline
+$\text{RegraCondicao}$ & & & & \\ \hline
+$\text{MaisCondicoes}$ & & $\text{MaisCond} \rightarrow \varepsilon$ & \makecell{$\text{MaisCond} \rightarrow$\\$\texttt{OP\_LOGICO} \quad \text{RegraCondicao}$} & \\ \hline
+$\text{BlocoEntao}$ & & \makecell{$\text{BlocoEntao} \rightarrow \texttt{ENTAO}$\\$\text{Comando} \quad \text{MaisComandos}$} & & \\ \hline
+$\text{Comando}$ & & & & \\ \hline
+$\text{Complemento}$ & & & & \\ \hline
+$\text{MaisComandos}$ & & & \makecell{$\text{MaisCom} \rightarrow \texttt{OP\_LOGICO}$\\$\text{Comando} \quad \text{MaisComandos}$} & $\text{MaisCom} \rightarrow \varepsilon$ \\ \hline
+\end{tabular}%
+}
+\caption{Matriz LL(1) - Parte 3: Condições e Fim de Pilha}
 \end{table}
 
 \subsection{Recuperação de Erros por Modo Pânico}
