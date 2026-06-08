@@ -12,7 +12,7 @@ TOKEN_REGEX = [
     ('QUANDO',    r'\bQUANDO\b'),
     ('SE',        r'\bSE\b'),
     ('ENTAO',     r'\bENTAO\b'),
-    ('OP_LOGICO', r'\b(E|OU|NAO)\b'),                      
+    ('OP_LOGICO', r'\b(E|OU)\b'),                      
     ('ACAO',      r'\b(ligar|desligar|alternar|notificar)\b'),
     ('ESTADO',    r'\b(ligado|desligado|aberto|quente|frio|normal|fechado|movimento|ocioso)\b'),
     ('OPERADOR',  r'\b(for|estiver)\b'),
